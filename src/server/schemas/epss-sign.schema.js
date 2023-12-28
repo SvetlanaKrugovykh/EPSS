@@ -1,7 +1,7 @@
 module.exports = {
-  description: 'Switch redir abonent by ips',
-  tags: ['abonents'],
-  summary: 'Switch redir abonent by ips',
+  description: 'Sign string',
+  tags: ['sign'],
+  summary: 'Sign string',
   headers: {
     type: 'object',
     properties: {
@@ -15,7 +15,7 @@ module.exports = {
       ipAddresses: { type: 'array' },
       vlanId: { type: 'string' }
     },
-    required: ['ipAddresses', 'vlanId']
+    required: ['dataString', 'keyString']
   },
   response: {
     201: {
