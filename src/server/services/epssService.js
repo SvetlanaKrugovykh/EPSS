@@ -18,15 +18,24 @@ module.exports.sign = async function (dataString, keyString) {
   }
 }
 
-module.exports.deSign = async function (dataString, signatureString, publicKeyString) {
+module.exports.deSign = async function (dataString) {
   try {
-    const dataBuffer = Buffer.isBuffer(dataString) ? dataString : Buffer.from(dataString, 'utf8')
-    const publicKey = forge.pki.publicKeyFromPem(publicKeyString)
-    const signature = forge.util.decode64(signatureString)
-    const md = forge.md.sha256.create()
-    md.update(dataBuffer)
-    const verified = publicKey.verify(md.digest().getBytes(), signature)
-    return verified
+    const p7 = forge.pkcs7.messageFromPem(dataString)
+
+    const certificates = p7.certificates
+
+    if (certificates.length > 0) {
+      const subjectAttributes = certificates[0].subject.attributes
+
+      const subject = subjectAttributes.reduce((result, attr) => {
+        result[attr.name] = attr.value
+        return result
+      }, {})
+
+      return subject
+    } else {
+      throw new Error('No certificates found')
+    }
   } catch (error) {
     console.error('Error executing deSign command:', error.message)
     return false

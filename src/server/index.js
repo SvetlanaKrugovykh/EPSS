@@ -10,10 +10,11 @@ const credentials = {
 }
 
 const app = Fastify({
-  trustProxy: true
+  trustProxy: true,
+  https: credentials
 })
 
 app.register(authPlugin)
-app.register(require('./routes/epss.route'), { prefix: '/api' })
+app.register(require('./routes/epss.route'), { prefix: '/api/v1' })
 
 module.exports = { app }

@@ -8,7 +8,7 @@ module.exports = (fastify, _opts, done) => {
     url: '/epss/sign/',
     handler: epssController.epssSign,
     preHandler: [
-      isAuthorizedGuard
+      //isAuthorizedGuard
     ],
     schema: epssSignSchema
   })
@@ -18,7 +18,7 @@ module.exports = (fastify, _opts, done) => {
     url: '/epss/de-sign/',
     handler: epssController.epssDeSign,
     preHandler: [
-      isAuthorizedGuard
+      //isAuthorizedGuard
     ],
     schema: epssSignSchema
   })
