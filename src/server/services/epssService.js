@@ -1,5 +1,5 @@
 const forge = require('node-forge')
-const fs = require('fs')
+const fs = require('fs').promises
 const path = require('path')
 
 module.exports.sign = async function (dataString, keyString) {
@@ -18,9 +18,21 @@ module.exports.sign = async function (dataString, keyString) {
   }
 }
 
-module.exports.deSign = async function (dataString, keyString) {
+module.exports.deSign = async function (FileName, KeyFiles) {
   try {
-    const p7 = forge.pkcs7.messageFromPem(dataString)
+    const dataBuffer = await fs.readFile(FileName)
+
+    const keys = []
+    for (const keyFile of KeyFiles) {
+      const key = await fs.readFile(keyFile, 'utf8')
+      keys.push(key)
+      const keyType = identifyPublicKeyType(key)
+      console.log(`Key type: ${keyType}`)
+    }
+
+    const derData = dataBuffer.toString('binary')
+
+    const p7 = forge.pkcs7.messageFromAsn1(forge.asn1.fromDer(derData))
 
     const certificates = p7.certificates
 
@@ -32,7 +44,7 @@ module.exports.deSign = async function (dataString, keyString) {
         return result
       }, {})
 
-      return subject
+      return { subject, keys }
     } else {
       throw new Error('No certificates found')
     }
@@ -40,4 +52,16 @@ module.exports.deSign = async function (dataString, keyString) {
     console.error('Error executing deSign command:', error.message)
     return false
   }
+}
+
+function identifyPublicKeyType(keyString) {
+  try {
+    const rsaPublicKey = forge.pki.publicKeyFromPem(keyString)
+    if (rsaPublicKey) {
+      return 'RSA'
+    }
+  } catch (error) {
+  }
+
+  return 'Unknown'
 }
