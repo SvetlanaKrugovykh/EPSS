@@ -17,8 +17,8 @@ module.exports.epssSign = async function (request, _reply) {
 
 
 module.exports.epssDeSign = async function (request, _reply) {
-  const { dataString } = request.body
-  const message = await epssService.deSign(dataString)
+  const { dataString, keyString } = request.body
+  const message = await epssService.deSign(dataString, keyString)
 
   if (!message) {
     throw new HttpError[501]('Command execution failed')

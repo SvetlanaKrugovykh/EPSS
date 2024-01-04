@@ -18,7 +18,7 @@ module.exports.sign = async function (dataString, keyString) {
   }
 }
 
-module.exports.deSign = async function (dataString) {
+module.exports.deSign = async function (dataString, keyString) {
   try {
     const p7 = forge.pkcs7.messageFromPem(dataString)
 
