@@ -2,18 +2,28 @@ const forge = require('node-forge')
 const fs = require('fs').promises
 const path = require('path')
 
-module.exports.sign = async function (dataString, keyString) {
+module.exports.signFile = async function (FileName, KeyFiles) {
   try {
-    const dataBuffer = Buffer.isBuffer(dataString) ? dataString : Buffer.from(dataString, 'utf8')
-    const privateKey = forge.pki.privateKeyFromPem(keyString)
+    const dataBuffer = await fs.readFile(FileName)
+    const fileContent = dataBuffer.toString('utf8')
 
-    const md = forge.md.sha256.create()
-    md.update(dataBuffer)
-    const signature = privateKey.sign(md)
-    const signatureBase64 = forge.util.encode64(signature)
-    return signatureBase64
+    for (const keyFile of KeyFiles) {
+      const keyBuffer = await readKeyFileWithTags(keyFile, 'PRIVATE')
+      const privateKey = forge.pki.privateKeyFromPem(keyBuffer)
+
+      const md = forge.md.sha256.create()
+      md.update(fileContent)
+      const signature = privateKey.sign(md)
+      const signatureBase64 = forge.util.encode64(signature)
+
+      const signedFileName = `${FileName}._signed_`
+      await fs.writeFile(signedFileName, signatureBase64, 'utf8')
+      console.log(`Signed file: ${signedFileName}`)
+    }
+
+    return true
   } catch (error) {
-    console.error('Error executing sign command:', error.message)
+    console.error('Error executing signFile command:', error.message)
     return false
   }
 }
@@ -64,4 +74,20 @@ function identifyPublicKeyType(keyString) {
   }
 
   return 'Unknown'
+}
+
+async function readKeyFileWithTags(keyFile, keyType) {
+  try {
+    let keyBuffer = await fs.readFile(keyFile, 'utf8')
+    const beginTag = `-----BEGIN ${keyType} KEY-----`
+    const endTag = `-----END ${keyType} KEY-----`
+
+    if (!keyBuffer.includes(beginTag) || !keyBuffer.includes(endTag)) {
+      keyBuffer = `${beginTag}\n${keyBuffer}\n${endTag}`
+    }
+    return keyBuffer
+  } catch (error) {
+    console.error('Error reading key file:', error.message)
+    return false
+  }
 }
