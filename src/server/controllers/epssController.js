@@ -11,7 +11,7 @@ module.exports.epssSign = async function (request, _reply) {
   }
 
   return {
-    message: `Abonent switched off ${addTag}`
+    message: `Sign on ${message}`
   }
 }
 
@@ -25,6 +25,6 @@ module.exports.epssDeSign = async function (request, _reply) {
   }
 
   return {
-    message: `Abonent forwarded on ${addTag}`
+    message: `DeSign off ${message}`
   }
 }
