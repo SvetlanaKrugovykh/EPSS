@@ -28,35 +28,15 @@ module.exports.signFile = async function (FileName, KeyFiles) {
   }
 }
 
-module.exports.deSign = async function (FileName, KeyFiles) {
+module.exports.deSign = async function (FileName, SignatureFile, PublicKeyFiles) {
   try {
-    const dataBuffer = await fs.readFile(FileName)
-
-    const keys = []
-    for (const keyFile of KeyFiles) {
-      const key = await fs.readFile(keyFile, 'utf8')
-      keys.push(key)
-      const keyType = identifyPublicKeyType(key)
-      console.log(`Key type: ${keyType}`)
-    }
-
-    const derData = dataBuffer.toString('binary')
-
-    const p7 = forge.pkcs7.messageFromAsn1(forge.asn1.fromDer(derData))
-
-    const certificates = p7.certificates
-
-    if (certificates.length > 0) {
-      const subjectAttributes = certificates[0].subject.attributes
-
-      const subject = subjectAttributes.reduce((result, attr) => {
-        result[attr.name] = attr.value
-        return result
-      }, {})
-
-      return { subject, keys }
+    const verificationResult = await verifySignature(FileName, SignatureFile, PublicKeyFiles)
+    if (verificationResult) {
+      console.log('Signature verification succeeded:', verificationResult)
+      return true
     } else {
-      throw new Error('No certificates found')
+      console.log('Signature verification failed.')
+      return false
     }
   } catch (error) {
     console.error('Error executing deSign command:', error.message)
@@ -64,27 +44,53 @@ module.exports.deSign = async function (FileName, KeyFiles) {
   }
 }
 
-function identifyPublicKeyType(keyString) {
+async function verifySignature(FileName, SignatureFile, PublicKeyFiles) {
   try {
-    const rsaPublicKey = forge.pki.publicKeyFromPem(keyString)
-    if (rsaPublicKey) {
-      return 'RSA'
+    const dataBuffer = await fs.readFile(FileName)
+    const signatureBase64 = await fs.readFile(SignatureFile, 'utf8')
+    const signatureBinary = forge.util.decode64(signatureBase64)
+
+    const keys = []
+    for (const keyFile of PublicKeyFiles) {
+      const publicKeyPem = await readKeyFileWithTags(keyFile, 'PUBLIC')
+      const publicKey = forge.pki.publicKeyFromPem(publicKeyPem)
+      keys.push(publicKey)
     }
+
+    const md = forge.md.sha256.create()
+    md.update(dataBuffer.toString('utf8'), 'utf8')
+
+    for (const key of keys) {
+      const isSignatureValid = key.verify(md.digest().getBytes(), signatureBinary)
+      if (!isSignatureValid) {
+        throw new Error('Signature verification failed')
+      }
+    }
+
+    return true
   } catch (error) {
+    console.error('Error verifying signature:', error.message)
+    return false
   }
-
-  return 'Unknown'
 }
-
 async function readKeyFileWithTags(keyFile, keyType) {
   try {
     let keyBuffer = await fs.readFile(keyFile, 'utf8')
     const beginTag = `-----BEGIN ${keyType} KEY-----`
     const endTag = `-----END ${keyType} KEY-----`
 
-    if (!keyBuffer.includes(beginTag) || !keyBuffer.includes(endTag)) {
-      keyBuffer = `${beginTag}\n${keyBuffer}\n${endTag}`
+    if (!keyBuffer.includes(`-----BEGIN`)) {
+      const keyBase64 = keyBuffer.toString('base64')
+      keyBuffer = `${beginTag}\n${keyBase64}\n${endTag}`
     }
+
+    if (keyType === 'PUBLIC') {
+      if (keyBuffer.includes('-----BEGIN CERTIFICATE-----')) {
+        const certificate = forge.pki.certificateFromPem(keyBuffer);
+        return forge.pki.publicKeyToPem(certificate.publicKey);
+      }
+    }
+
     return keyBuffer
   } catch (error) {
     console.error('Error reading key file:', error.message)
