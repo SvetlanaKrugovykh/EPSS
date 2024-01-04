@@ -63,7 +63,7 @@ async function verifySignature(FileName, SignatureFile, PublicKeyFiles) {
     for (const key of keys) {
       const isSignatureValid = key.verify(md.digest().getBytes(), signatureBinary)
       if (!isSignatureValid) {
-        throw new Error('Signature verification failed')
+        return false
       }
     }
 

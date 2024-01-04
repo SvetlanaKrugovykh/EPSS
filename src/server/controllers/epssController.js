@@ -20,10 +20,6 @@ module.exports.epssDeSign = async function (request, _reply) {
   const { FileName, SignatureFile, KeyFiles } = request.body
   const message = await epssService.deSign(FileName, SignatureFile, KeyFiles)
 
-  if (!message) {
-    throw new HttpError[501]('Command execution failed')
-  }
-
   return {
     message: `DeSign off ${message}`
   }
