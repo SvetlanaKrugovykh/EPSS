@@ -1,25 +1,31 @@
 const forge = require('node-forge')
-const fs = require('fs').promises
+const fs = require('fs')
 const path = require('path')
 
 module.exports.signFile = async function (FileName, KeyFiles) {
   try {
-    const dataBuffer = await fs.readFile(FileName)
-    const fileContent = dataBuffer.toString('utf8')
+    const data = fs.readFileSync(FileName, 'utf8')
 
     for (const keyFile of KeyFiles) {
       const keyBuffer = await readKeyFileWithTags(keyFile, 'PRIVATE')
       const privateKey = forge.pki.privateKeyFromPem(keyBuffer)
 
       const md = forge.md.sha256.create()
-      md.update(fileContent)
+      md.update(data, 'utf8')
       const signature = privateKey.sign(md)
-      const signatureBase64 = forge.util.encode64(signature)
+      const signatureHex = forge.util.bytesToHex(signature)
 
       const signedFileName = `${FileName}._signed_`
-      await fs.writeFile(signedFileName, signatureBase64, 'utf8')
+      fs.writeFileSync(signedFileName, signatureHex)
       console.log(`Signed file: ${signedFileName}`)
     }
+
+    const keys = forge.pki.rsa.generateKeyPair(2048)
+    const md = forge.md.sha256.create()
+    md.update(data, 'utf8')
+    const signature = keys.privateKey.sign(md)
+    const verified = keys.publicKey.verify(md.digest().bytes(), signature)
+    console.log(`Signature verified: ${verified}`)
 
     return true
   } catch (error) {
@@ -46,22 +52,22 @@ module.exports.deSign = async function (FileName, SignatureFile, PublicKeyFiles)
 
 async function verifySignature(FileName, SignatureFile, PublicKeyFiles) {
   try {
-    const dataBuffer = await fs.readFile(FileName)
-    const signatureBase64 = await fs.readFile(SignatureFile, 'utf8')
-    const signatureBinary = forge.util.decode64(signatureBase64)
+    const data = fs.readFileSync(FileName, 'utf8')
+    const ssignatureHex = fs.readFileSync(SignatureFile, 'utf8')
+    const signature = forge.util.hexToBytes(ssignatureHex)
 
     const keys = []
     for (const keyFile of PublicKeyFiles) {
-      const publicKeyPem = await readKeyFileWithTags(keyFile, 'PUBLIC')
-      const publicKey = forge.pki.publicKeyFromPem(publicKeyPem)
+      const publicKey = await readKeyFileWithTags(keyFile, 'PUBLIC')
       keys.push(publicKey)
     }
 
     const md = forge.md.sha256.create()
-    md.update(dataBuffer.toString('utf8'), 'utf8')
+    md.update(data, 'utf8')
 
     for (const key of keys) {
-      const isSignatureValid = key.verify(md.digest().getBytes(), signatureBinary)
+      const isSignatureValid = key.verify(md.digest().getBytes(), signature)
+      console.log(`Signature verification for ${key.n.toString(16)}: ${isSignatureValid}`)
       if (!isSignatureValid) {
         return false
       }
@@ -73,9 +79,10 @@ async function verifySignature(FileName, SignatureFile, PublicKeyFiles) {
     return false
   }
 }
+
 async function readKeyFileWithTags(keyFile, keyType) {
   try {
-    let keyBuffer = await fs.readFile(keyFile, 'utf8')
+    let keyBuffer = fs.readFileSync(keyFile, 'utf8')
     const beginTag = `-----BEGIN ${keyType} KEY-----`
     const endTag = `-----END ${keyType} KEY-----`
 
@@ -86,11 +93,13 @@ async function readKeyFileWithTags(keyFile, keyType) {
 
     if (keyType === 'PUBLIC') {
       if (keyBuffer.includes('-----BEGIN CERTIFICATE-----')) {
-        const certificate = forge.pki.certificateFromPem(keyBuffer);
-        return forge.pki.publicKeyToPem(certificate.publicKey);
+        const certificate = forge.pki.certificateFromPem(keyBuffer)
+        return certificate.publicKey
+      } else {
+        const publicKey = forge.pki.publicKeyFromPem(keyBuffer)
+        return publicKey
       }
     }
-
     return keyBuffer
   } catch (error) {
     console.error('Error reading key file:', error.message)
