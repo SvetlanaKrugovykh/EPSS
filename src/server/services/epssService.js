@@ -58,6 +58,18 @@ module.exports.checkKeys = async function (KeyFiles) {
       if (dataType === 'private_key' || dataType === 'public_key' || dataType === 'certificate') {
         console.log(`Detected data type: ${dataType}`)
 
+        if (dataType === 'certificate') {
+          const certificate = forge.pki.certificateFromPem(rawData);
+          console.log('Subject:', certificate.subject.attributes);
+          console.log('Issuer:', certificate.issuer.attributes);
+        } else if (dataType === 'private_key') {
+          const privateKey = forge.pki.privateKeyFromPem(rawData);
+          console.log('Private Key:', privateKey);
+        } else if (dataType === 'public_key') {
+          const publicKey = forge.pki.publicKeyFromPem(rawData);
+          console.log('Public Key:', publicKey);
+        }
+
         if (dataType !== 'private_key' && dataType !== 'public_key' && dataType !== 'certificate') {
           const pemData = binaryToPEM(dataBuffer, dataType)
           if (pemData) {
