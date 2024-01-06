@@ -4,7 +4,7 @@ const addTag = process.env.PLATFORM !== 'freebsd' ? '( Test mode )' : ''
 
 module.exports.epssSign = async function (request, _reply) {
   const { FileName, KeyFiles } = request.body
-  const message = await epssService.signFile(FileName, KeyFiles)
+  const message = await epssService.signFile(FileName, KeyFiles, true)
 
   if (!message) {
     throw new HttpError[501]('Command execution failed')
@@ -17,8 +17,8 @@ module.exports.epssSign = async function (request, _reply) {
 
 
 module.exports.epssDeSign = async function (request, _reply) {
-  const { FileName, SignatureFile, KeyFiles } = request.body
-  const message = await epssService.deSign(FileName, SignatureFile, KeyFiles)
+  const { FileName, KeyFiles } = request.body
+  const message = await epssService.deSign(FileName, KeyFiles)
 
   return {
     message: `DeSign off ${message}`
