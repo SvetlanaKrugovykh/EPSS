@@ -7,12 +7,18 @@ module.exports.signFile = async function (FileName, KeyFiles, genegateKeys = fal
     if (genegateKeys) keysGeneration(KeyFiles)
 
     for (const keyFile of KeyFiles) {
-      const keyPEM = await readKeyFileWithTags(keyFile, 'PRIVATE')
-      const privateKey = forge.pki.privateKeyFromPem(keyPEM)
+      const rawData = fs.readFileSync(keyFile, 'utf8')
+      const dataType = detectKeyOrCert(rawData)
+      let key
+      if (dataType === 'private_key') {
+        key = forge.pki.privateKeyFromPem(rawData)
+      } else if (dataType === 'unknown') {
+        key = binaryToPEM(rawData, 'PRIVATE KEY')
+      }
 
       const md = forge.md.sha256.create()
       md.update(data, 'utf8')
-      const signature = privateKey.sign(md)
+      const signature = key.sign(md)
       const signatureHex = forge.util.bytesToHex(signature)
 
       const signedFileName = `${FileName}._signed_.${KeyFiles.indexOf(keyFile)}`
@@ -95,7 +101,20 @@ async function verifySignature(FileName, PublicKeyFiles) {
     const data = fs.readFileSync(FileName, 'utf8')
 
     for (const keyFile of PublicKeyFiles) {
-      const key = await readKeyFileWithTags(keyFile, 'PUBLIC')
+      const rawData = fs.readFileSync(keyFile, 'utf8')
+      const dataType = detectKeyOrCert(rawData)
+      let key
+      if (dataType === 'public_key') {
+        key = forge.pki.publicKeyFromPem(rawData)
+      } else if (dataType === 'certificate') {
+        const certificate = forge.pki.certificateFromPem(rawData)
+        key = certificate.publicKey
+      } else if (dataType === 'unknown') {
+        const pemData = binaryToPEM(rawData, 'PUBLIC KEY')
+        if (pemData) {
+          key = forge.pki.publicKeyFromPem(pemData)
+        }
+      }
       const SignatureFile = `${FileName}._signed_.${PublicKeyFiles.indexOf(keyFile)}`
       const ssignatureHex = fs.readFileSync(SignatureFile, 'utf8')
       const signature = forge.util.hexToBytes(ssignatureHex)
@@ -119,36 +138,36 @@ function detectKeyOrCert(data) {
     { handler: forge.pki.privateKeyFromPem, type: 'private_key' },
     { handler: forge.pki.publicKeyFromPem, type: 'public_key' },
     { handler: forge.pki.certificateFromPem, type: 'certificate' }
-  ];
+  ]
 
   const derHandlers = [
     { handler: forge.pki.privateKeyFromAsn1, type: 'private_key' },
     { handler: forge.pki.publicKeyFromAsn1, type: 'public_key' },
     { handler: forge.pki.certificateFromAsn1, type: 'certificate' }
-  ];
+  ]
 
   for (const { handler, type } of pemHandlers) {
     try {
-      const key = handler(data);
-      console.log(key);
-      return type;
+      const key = handler(data)
+      console.log(key)
+      return type
     } catch (err) { }
   }
 
   try {
-    const derBuffer = Buffer.from(data, 'binary');
-    const asn1 = forge.asn1.fromDer(derBuffer.toString('binary'));
+    const derBuffer = Buffer.from(data, 'binary')
+    const asn1 = forge.asn1.fromDer(derBuffer.toString('binary'))
 
     for (const { handler, type } of derHandlers) {
       try {
-        const key = handler(asn1);
-        console.log(key);
-        return type;
+        const key = handler(asn1)
+        console.log(key)
+        return type
       } catch (err) { }
     }
   } catch (err) { }
 
-  return 'unknown';
+  return 'unknown'
 }
 
 function binaryToPEM(binaryData, type) {
@@ -161,29 +180,3 @@ function binaryToPEM(binaryData, type) {
   }
 }
 
-async function readKeyFileWithTags(keyFile, keyType) {
-  try {
-    let keyBuffer = fs.readFileSync(keyFile, 'utf8')
-    const beginTag = `-----BEGIN ${keyType} KEY-----`
-    const endTag = `-----END ${keyType} KEY-----`
-
-    if (!keyBuffer.includes(`-----BEGIN`)) {
-      const keyBase64 = keyBuffer.toString('base64')
-      keyBuffer = `${beginTag}\n${keyBase64}\n${endTag}`
-    }
-
-    if (keyType === 'PUBLIC') {
-      if (keyBuffer.includes('-----BEGIN CERTIFICATE-----')) {
-        const certificate = forge.pki.certificateFromPem(keyBuffer)
-        return certificate.publicKey
-      } else {
-        const publicKey = forge.pki.publicKeyFromPem(keyBuffer)
-        return publicKey
-      }
-    }
-    return keyBuffer
-  } catch (error) {
-    console.error('Error reading key file:', error.message)
-    return false
-  }
-}
