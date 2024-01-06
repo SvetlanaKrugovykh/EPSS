@@ -23,6 +23,16 @@ module.exports = (fastify, _opts, done) => {
     schema: epssSignSchema
   })
 
+  fastify.route({
+    method: 'POST',
+    url: '/epss/check-key/',
+    handler: epssController.checkKeys,
+    preHandler: [
+      //isAuthorizedGuard
+    ],
+    schema: epssSignSchema
+  })
+
   done()
 }
 

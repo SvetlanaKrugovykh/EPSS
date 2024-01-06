@@ -15,7 +15,6 @@ module.exports.epssSign = async function (request, _reply) {
   }
 }
 
-
 module.exports.epssDeSign = async function (request, _reply) {
   const { FileName, KeyFiles } = request.body
   const message = await epssService.deSign(FileName, KeyFiles)
@@ -23,4 +22,14 @@ module.exports.epssDeSign = async function (request, _reply) {
   return {
     message: `DeSign off ${message}`
   }
+}
+
+module.exports.checkKeys = async function (request, _reply) {
+  const { KeyFiles } = request.body
+  const message = await epssService.checkKeys(KeyFiles)
+
+  return {
+    message: `Check Key ${message}`
+  }
+
 }
