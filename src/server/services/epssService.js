@@ -35,7 +35,7 @@ module.exports.signFile = async function (FileName, KeyFiles, genegateKeys = fal
 
 module.exports.deSign = async function (FileName, PublicKeyFiles) {
   try {
-    const verificationResult = await verifySignature(FileName, PublicKeyFiles)
+    const verificationResult = await verifySignatures(FileName, PublicKeyFiles)
     if (verificationResult) {
       console.log('Signature verification succeeded:', verificationResult)
       return true
@@ -59,15 +59,15 @@ module.exports.checkKeys = async function (KeyFiles) {
         console.log(`Detected data type: ${dataType}`)
 
         if (dataType === 'certificate') {
-          const certificate = forge.pki.certificateFromPem(rawData);
-          console.log('Subject:', certificate.subject.attributes);
-          console.log('Issuer:', certificate.issuer.attributes);
+          const certificate = forge.pki.certificateFromPem(rawData)
+          console.log('Subject:', certificate.subject.attributes)
+          console.log('Issuer:', certificate.issuer.attributes)
         } else if (dataType === 'private_key') {
-          const privateKey = forge.pki.privateKeyFromPem(rawData);
-          console.log('Private Key:', privateKey);
+          const privateKey = forge.pki.privateKeyFromPem(rawData)
+          console.log('Private Key:', privateKey)
         } else if (dataType === 'public_key') {
-          const publicKey = forge.pki.publicKeyFromPem(rawData);
-          console.log('Public Key:', publicKey);
+          const publicKey = forge.pki.publicKeyFromPem(rawData)
+          console.log('Public Key:', publicKey)
         }
 
         if (dataType !== 'private_key' && dataType !== 'public_key' && dataType !== 'certificate') {
@@ -108,7 +108,7 @@ async function keysGeneration(KeyFiles) {
   }
 }
 
-async function verifySignature(FileName, PublicKeyFiles) {
+async function verifySignatures(FileName, PublicKeyFiles) {
   try {
     const data = fs.readFileSync(FileName, 'utf8')
 
